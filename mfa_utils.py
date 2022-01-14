@@ -120,6 +120,7 @@ def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, this_root='/wo
     mfa align {corpus_dir} english_dict.txt english {aligned_dir} --clean
     ''')
 
+    all_new_intervals = {}
     for wav_idx,wav_id in enumerate(wav_ids): # i is wav counter
         intervals = all_intervals[wav_idx]
         new_intervals = []
@@ -132,8 +133,13 @@ def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, this_root='/wo
             for ((start,end),word) in subintervals:
                 if word != '':
                     new_intervals.append(((npr(start+offset),npr(end+offset)),word))
+        
+        all_new_intervals[wav_id] = {
+            'wav_idx': wav_idx, 
+            'intervals': new_intervals,
+        }
     
-    return new_intervals
+    return all_new_intervals
 
 def main(wav_dir, wav_ids, vtt_dir, corpus_dir, aligned_dir, intervals_path):
     all_intervals = create_corpus(vtt_dir, wav_dir, wav_ids, corpus_dir)
