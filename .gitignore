@@ -5,3 +5,10 @@ p2fa
 
 librispeech*
 *.pyc
+
+*_full_*
+aligned_siq
+siq_full
+blah
+blah2
+aligned_siq_full

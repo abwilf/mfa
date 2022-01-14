@@ -1,5 +1,8 @@
 # Montreal-Forced-Aligner Utils
 
+Note: because I didn't have speaker information, I built the system without that in mind.  If you have speaker information at an utterance level, you'll want to take a different procedure but hopefully these functions are modular enough for you to use as you do that.
+
+Note: this doesn't work if you run it in vscode b/c the os.system command falters within their environment.  Should work in terminal.
 
 ## Setup
 Install MFA

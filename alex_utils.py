@@ -10,6 +10,7 @@ from itertools import product
 from datetime import datetime
 # from sklearn.utils import class_weight
 import pprint
+import re
 
 def pstring(elt):
     import pprint
@@ -151,6 +152,16 @@ def obj_to_grid(a):
 def ar(a):
     return np.array(a)
 
+def cp(src, dst):
+    shutil.copy(src, dst)
+
+def cpr(src,dst): 
+    shutil.copytree(src,dst)
+
+def rm(filepath):
+    if exists(filepath):
+        os.remove(filepath)
+
 def rmrf(dir_path):
     if exists(dir_path):
         print(f'Removing {dir_path}')
@@ -227,7 +238,7 @@ def df_sample():
 def subset(a, b):
     return np.min([elt in b for elt in a]) > 0
 
-def subsets_eq(a,b):
+def subsets_equal(a,b):
     return subset(a,b) and subset(b,a)
 
 def dict_at(d):
