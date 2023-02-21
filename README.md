@@ -5,23 +5,31 @@ Note: because I didn't have speaker information, I built the system without that
 Note: this doesn't work if you run it in vscode b/c the os.system command falters within their environment.  Should work in terminal.
 
 ## Setup
-Install MFA
+1. Install MFA
 
 https://montreal-forced-aligner.readthedocs.io/en/latest/installation.html
 
+Make sure you can run their minimal examples using the `mfa align` command – that's what we'll need moving forward.
+
+2/ Once you've done so, replace these variables in `mfa_utils.py` with your `kaldi_root` from above, and the path to this directory
+```python
+this_root='/work/awilf/mfa', kaldi_root='/work/awilf/kaldi'
+```
+Then install the dependencies we'll need on top of MFA into an environment with `python3.7`.
 ```bash
 pip install librosa soundfile pandas numpy requests tqdm
 ```
-
-Make sure you're using `python3`.  I use `python3.7`.
+These are also listed in `requirements.txt`, which you can install using `pip install -r requirements.txt`
 
 ## Minimal Example
-
+### Minimal Example (High Level)
 ```bash
-python mfa_utils.py
+python mfa_utils.py --wav_dir siq_wavs --vtt_dir siq_vtts --intervals_path intervals.json
 ```
 
-Below, I walk through what this code does.  It is also well documented in `mfa_utils.py`.
+This code takes a set of wavs in `--wav_dir` of the form `{id}.wav` and a set of transcripts in `--vtt_dir` of the form `{id}.vtt` and performs word alignment (gets start and end timings for each word). The output is put into `--intervals_path` as a json.
+
+### Minimal Example (Details)
 To transform .vtt files (partial transcripts) and long wavs to a forced alignment (we have timestamp boundaries for the start and end of each word), we do the following steps:
 
 1. Split the wavs into partials.  The original wavs (`siq_wavs`) and original vtt files (`siq_vtts`) are used to create the segments and corresponding segment transcripts.  These segmented wavs and transcripts go in `corpus_dir`, e.g. `siq`. This happens in `create_corpus()` in `mfa_utils.py`.

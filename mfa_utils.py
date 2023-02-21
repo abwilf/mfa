@@ -84,7 +84,7 @@ def split_wav(wav_in, intervals, out_dir, wav_prefix=''):
     assert np.all([elt.shape[0] for elt in sub_wavs]), 'Should be no empty wavs, else messes up MFA'
 
     for i,sub_wav in enumerate(sub_wavs):
-        sf.write(join(out_dir, f'{wav_prefix}{i:04d}.wav'), sub_wav, samplerate=sr)
+        sf.write(join(out_dir, '{}{:04d}.wav'.format(wav_prefix, i)), sub_wav, samplerate=sr)
 
     return intervals
 
@@ -100,15 +100,15 @@ def create_corpus(vtt_dir, wav_dir, wav_ids, corpus_dir):
     for i,wav_id in enumerate(wav_ids):
         segment_dir_name = i
         segment_dir = join(corpus_dir, segment_dir_name)
-        intervals = read_vtt(join(vtt_dir, f'{wav_id}.vtt'), _process_text)
+        intervals = read_vtt(join(vtt_dir, '{}.vtt'.format(wav_id)), _process_text)
 
-        wav_prefix = f'{segment_dir_name}-{wav_id}-'
+        wav_prefix = '{}-{}-'.format(segment_dir_name, wav_id)
 
-        intervals = split_wav(join(wav_dir, f'{wav_id}.wav'), intervals, segment_dir, wav_prefix=wav_prefix)
+        intervals = split_wav(join(wav_dir, '{}.wav'.format(wav_id)), intervals, segment_dir, wav_prefix=wav_prefix)
         all_intervals.append(intervals)
 
         for i,text in enumerate(lzip(*intervals)[1]):
-            write_txt(join(segment_dir, f'{wav_prefix}{i:04d}.lab'), text)
+            write_txt(join(segment_dir, '{}{:04d}.lab'.format(wav_prefix, i)), text)
     
     return all_intervals
 
@@ -118,27 +118,31 @@ def textgrid_to_subintervals(filepath):
     data = [((interval.minTime, interval.maxTime), interval.mark) for interval in intervals]
     return data
     
-def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, this_root='/work/awilf/mfa', kaldi_root='/work/awilf/kaldi'):
+def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, _input, this_root='/work/awilf/mfa', kaldi_root='/work/awilf/kaldi'):
     rmrf(aligned_dir)
 
     # run MFA on segmented wavs
-    os.system(f'''
-    cd {this_root}
-    export KALDI_ROOT='{kaldi_root}'
+    prompt_str = '''
+    cd {}
+    export KALDI_ROOT='{}'
     export PATH=$PWD/utils/:$KALDI_ROOT/src/bin:$KALDI_ROOT/tools/openfst/bin:$KALDI_ROOT/src/fstbin/:$KALDI_ROOT/src/gmmbin/:$KALDI_ROOT/src/featbin/:$KALDI_ROOT/src/lmbin/:$KALDI_ROOT/src/sgmm2bin/:$KALDI_ROOT/src/fgmmbin/:$KALDI_ROOT/src/latbin/:$PWD:$PATH
 
-    # mfa align /work/awilf/mfa/Librispeech librispeech-lexicon.txt english aligned_librispeech --clean
-    # mfa align /work/awilf/mfa/siq_full english_dict.txt english aligned_siq_full
+    mfa align {} english_dict.txt english {} --clean
+    '''.format(this_root, kaldi_root, corpus_dir, aligned_dir)
 
-    mfa align {corpus_dir} english_dict.txt english {aligned_dir} --clean
-    ''')
+    if _input:
+        prompt_str = 'Please run the following command in another shell, then hit enter when completed: \n' + prompt_str
+        _ = input(prompt_str)
+
+    else:
+        os.system(prompt_str)
 
     all_new_intervals = {}
     for wav_idx,wav_id in enumerate(wav_ids): # i is wav counter
         intervals = all_intervals[wav_idx]
         new_intervals = []
         for segment_idx, ((offset,_),_) in enumerate(intervals):
-            textgrid_path = join(aligned_dir, wav_idx, f'{wav_idx}-{wav_id}-{segment_idx:04d}.TextGrid')
+            textgrid_path = join(aligned_dir, wav_idx, '{}-{}-{:04d}.TextGrid'.format(wav_idx, wav_id, segment_idx))
             if not exists(textgrid_path):
                 continue
             
@@ -154,22 +158,27 @@ def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, this_root='/wo
     
     return all_new_intervals
 
-def main(wav_dir, vtt_dir, corpus_dir, aligned_dir, intervals_path):
+def main(wav_dir, vtt_dir, corpus_dir, aligned_dir, intervals_path, _input):
     wav_ids = lmap(lambda elt: elt.split('/')[-1].split('.')[0], glob(join(wav_dir, '*')))
     vtt_ids = lmap(lambda elt: elt.split('/')[-1].split('.')[0], glob(join(vtt_dir, '*')))
     assert subsets_equal(wav_ids, vtt_ids), 'The files in wav_dir and vtt_dir must be the same'
 
     all_intervals = create_corpus(vtt_dir, wav_dir, wav_ids, corpus_dir)
-    new_intervals = align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids)
+    new_intervals = align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, _input)
     save_json(intervals_path, new_intervals)
 
-if __name__ == '__main__':
-    wav_dir = 'siq_full_wavs'
-    vtt_dir = 'siq_full_vtts'
-    corpus_dir = 'siq_full'
-    aligned_dir = 'aligned_siq_full'
-    intervals_path = 'intervals.json'
+    print('All done! Please see your output json file in', intervals_path)
 
-    main(wav_dir, vtt_dir, corpus_dir, aligned_dir, intervals_path)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--wav_dir', default='siq_wavs', type=str, required=True, help='Path to wav directory')
+    parser.add_argument('--vtt_dir', default='siq_vtts', type=str, required=True, help='Path to vtt directory')
+    parser.add_argument('--corpus_dir', default='_siq_corpus', type=str, required=False, help='Path to where the corpus will be created (internal)')
+    parser.add_argument('--aligned_dir', default='_siq_aligned', type=str, required=False, help='Path to where the aligned corpus will be created (internal proces to mfa)')
+    parser.add_argument('--intervals_path', default='intervals.json', type=str, required=True, help='Where the intervals should be written to (json format)')
+    parser.add_argument('--_input', default=1, type=int, required=False, help='Use input vs os.system; do this if you need to run mfa call separately')
+    args = parser.parse_args()
+
+    main(args.wav_dir, args.vtt_dir, args.corpus_dir, args.aligned_dir, args.intervals_path, args._input)
 
     
