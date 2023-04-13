@@ -131,7 +131,7 @@ def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, _input, this_r
     '''.format(this_root, kaldi_root, corpus_dir, aligned_dir)
 
     if _input:
-        prompt_str = 'Please run the following command in another shell, then hit enter when completed: \n' + prompt_str
+        prompt_str = 'Please run the following command in a shell in which you have montreal force alignment installed (the `mfa align` command), then hit enter when completed: \n' + prompt_str
         _ = input(prompt_str)
 
     else:
@@ -161,7 +161,10 @@ def align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, _input, this_r
 def main(wav_dir, vtt_dir, corpus_dir, aligned_dir, intervals_path, _input):
     wav_ids = lmap(lambda elt: elt.split('/')[-1].split('.')[0], glob(join(wav_dir, '*')))
     vtt_ids = lmap(lambda elt: elt.split('/')[-1].split('.')[0], glob(join(vtt_dir, '*')))
-    assert subsets_equal(wav_ids, vtt_ids), 'The files in wav_dir and vtt_dir must be the same'
+    if not subsets_equal(wav_ids, vtt_ids):
+        wav_ids = [elt for elt in wav_ids if elt in vtt_ids]
+        vtt_ids = wav_ids
+        print(f'There are some wav ids that are not the same as the vtt ids. We will consider only the ids that are the same between them, which are of length {len(wav_ids)}')
 
     all_intervals = create_corpus(vtt_dir, wav_dir, wav_ids, corpus_dir)
     new_intervals = align_corpus(corpus_dir, aligned_dir, all_intervals, wav_ids, _input)
